@@ -69,7 +69,6 @@ class L2CS_Runner:
             self._initialized = True
             print("Model Initialized")
 
-
     def run(self, emit_prediction=None):
         self._ensure_initialized()
 
@@ -137,7 +136,7 @@ class L2CS_Runner:
                         0.75,
                         (0, 0, 255),
                         2,
-                        )
+                    )
                     cv2.putText(
                         frame,
                         "Y: " + "{:7.2f}".format(pitch),
@@ -146,7 +145,7 @@ class L2CS_Runner:
                         0.75,
                         (0, 0, 255),
                         2,
-                        )
+                    )
                     # fps
                     fps = 1 / (time.time() - start_time)
                     cv2.putText(
@@ -157,10 +156,10 @@ class L2CS_Runner:
                         0.75,
                         (0, 0, 255),
                         2,
-                        )
+                    )
                 cv2.imshow("Frame", frame)
-                if cv2.waitKey(1) & 0xFF == 27:
-                    break
+                if cv2.waitKey(1) & 0xFF == ord("q"):
+                    exit(0)
 
     def stop(self):
         self._is_running = False

@@ -200,9 +200,7 @@ class GazeEstimation:
             )  # line(coord1, coord2); False=spark flag
         return self.gaze_lines
 
-    def draw_gaze_lines_and_centre(
-        self, out_img
-    ):
+    def draw_gaze_lines_and_centre(self, out_img):
         self.gaze_centre = [0, 0]
         i = 0
         for gaze_line in self.gaze_lines:
@@ -210,12 +208,13 @@ class GazeEstimation:
             draw_gaze_line(
                 out_img,
                 (gaze_line[0][0], gaze_line[0][1]),
-                (gaze_line[1][0], gaze_line[1][1])
+                (gaze_line[1][0], gaze_line[1][1]),
             )
             self.gaze_centre[0] = self.gaze_centre[0] + gaze_line[1][0]
             self.gaze_centre[1] = self.gaze_centre[1] + gaze_line[1][1]
             if gaze_line[2] == True:
                 pass
+
 
 class Main:
     def __init__(self, camx=1280, camy=720) -> None:
@@ -250,15 +249,13 @@ class Main:
         )
 
     def calc_gaze(self):
-        #fps
+        # fps
         start_time = time.time()
         ret, img = self.cam.read()
         if ret == False:
             return False
 
-        self.out_img = (
-            img.copy()
-        )
+        self.out_img = img.copy()
 
         img1 = cv2.resize(
             img,
@@ -281,9 +278,7 @@ class Main:
                     obj, img
                 )
 
-                lm = self.landmark_detect.find_landmarks(
-                    face, self._W, self._H
-                )
+                lm = self.landmark_detect.find_landmarks(face, self._W, self._H)
 
                 # Estimate head orientation (yaw=Y, pitch=X, roll=Z)
                 yaw, pitch, roll = self.head_detect.get_head_orientation(
@@ -346,8 +341,7 @@ class Main:
                     eye_centers, _X, _Y, xmin, ymin, gaze_vec_norm
                 )
 
-        self.gaze_estim.draw_gaze_lines_and_centre(
-            self.out_img)
+        self.gaze_estim.draw_gaze_lines_and_centre(self.out_img)
         try:
             self.gaze_centre = self.gaze_estim.gaze_centre_t
         except:
@@ -365,12 +359,10 @@ class Main:
             2,
         )
 
-
         cv2.imshow("gaze", self.out_img)
 
-        key = cv2.waitKey(1)
-        if key == 27:
-            return False
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            exit(0)
         return True
 
     def main(self):
@@ -383,7 +375,6 @@ class Main:
 
 def draw_gaze_line(img, coord1, coord2):
     cv2.line(img, coord1, coord2, (0, 0, 255), 2)
-
 
 
 if __name__ == "__main__":

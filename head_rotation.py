@@ -103,18 +103,18 @@ if __name__ == "__main__":
                 kalman.correct(np.array([[x], [y]], dtype=np.float32))
                 predictions = kalman.predict()
                 x = predictions[0][0]
-                y = predictions[1][0]
+                y = -predictions[1][0]
                 filtered_angles.append([x, y])
                 # clamp angles
                 normalized_x = (x - zero_x) / limit_x
-                normalized_y = -(y - zero_y) / limit_y
-                if x > limit_x:
+                normalized_y = (y - zero_y) / limit_y
+                if normalized_x > 1:
                     normalized_x = 1
-                elif x < -limit_x:
+                elif normalized_x < -1:
                     normalized_x = -1
-                if y > limit_y:
+                if normalized_y > 1:
                     normalized_y = 1
-                elif y < -limit_y:
+                elif normalized_y < -1:
                     normalized_y = -1
 
                 # draw a moving crosshair based on normalized angles
