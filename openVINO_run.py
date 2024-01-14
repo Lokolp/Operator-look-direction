@@ -9,6 +9,19 @@ from scipy.spatial import distance
 from openvino.inference_engine import IECore
 import time
 import pickle
+import socket
+
+# kalman filter for smoothing x and y angles
+kalman = cv2.KalmanFilter(4, 2)
+kalman.measurementMatrix = np.array([[1, 0, 0, 0], [0, 1, 0, 0]], np.float32)
+kalman.transitionMatrix = np.array(
+    [[1, 0, 0.9, 0], [0, 1, 0, 0.9], [0, 0, 1, 0], [0, 0, 0, 1]], np.float32
+)
+kalman.processNoiseCov = (
+    np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]], np.float32)
+    * 0.03
+)
+kalman.measurementNoiseCov = np.array([[1, 0], [0, 1]], np.float32) * 1
 
 
 class FaceDetection:
@@ -249,6 +262,7 @@ class Main:
         )
 
     def calc_gaze(self):
+        gaze_vec_norm = [0, 0]
         # fps
         start_time = time.time()
         ret, img = self.cam.read()
@@ -315,7 +329,11 @@ class Main:
                 gaze_vec_norm = self.gaze_estim.calc_gaze_vec(
                     self.landmark_detect.eyes, roll, pitch, yaw
                 )
-                print("gaze_vec_norm:" + str(gaze_vec_norm))
+                # print("gaze_vec_norm:" + str(gaze_vec_norm))
+                kalman.correct(np.array([[gaze_vec_norm[0]], [gaze_vec_norm[1]]], dtype=np.float32))
+                predictions = kalman.predict()
+                gaze_vec_norm[0] = predictions[0][0]
+                gaze_vec_norm[1] = predictions[1][0]
                 # gaze angles
                 cv2.putText(
                     self.out_img,
@@ -363,11 +381,22 @@ class Main:
 
         if cv2.waitKey(1) & 0xFF == ord("q"):
             exit(0)
-        return True
+        return gaze_vec_norm
 
     def main(self):
+        # start a socket to send data to server
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect((IP, PORT))
+        except:
+            print("Server not found")
         while True:
-            self.calc_gaze()
+            gaze = self.calc_gaze()
+            try:
+                data = pickle.dumps(gaze)
+                s.sendall(data)
+            except:
+                pass
             # cv2.imshow("gaze", self.out_img)
 
         cv2.destroyAllWindows()
@@ -378,5 +407,7 @@ def draw_gaze_line(img, coord1, coord2):
 
 
 if __name__ == "__main__":
+    IP = sys.argv[1]
+    PORT = int(sys.argv[2])
     main = Main()
     sys.exit(main.main() or 0)

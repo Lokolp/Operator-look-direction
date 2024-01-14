@@ -4,6 +4,8 @@ import mediapipe as mp
 import time
 import pickle
 import matplotlib.pyplot as plt
+import socket
+import sys
 
 # kalman filter for smoothing x and y angles
 kalman = cv2.KalmanFilter(4, 2)
@@ -13,6 +15,15 @@ kalman.processNoiseCov = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0,
 kalman.measurementNoiseCov = np.array([[1, 0], [0, 1]], np.float32) * 1
 
 if __name__ == "__main__":
+    # start a socket to send data to server
+    IP = (sys.argv[1])
+    PORT = int(sys.argv[2])
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((IP, PORT))
+    except:
+        print("Server not found")
+
     FACE = [33, 263, 1, 10, 168, 174, 399]
     mp_face_mesh = mp.solutions.face_mesh
     face_mesh = mp_face_mesh.FaceMesh(max_num_faces=1, refine_landmarks=False)
@@ -103,11 +114,18 @@ if __name__ == "__main__":
                 kalman.correct(np.array([[x], [y]], dtype=np.float32))
                 predictions = kalman.predict()
                 x = predictions[0][0]
-                y = -predictions[1][0]
+                y = predictions[1][0]
+                # send angle data to server
+                try:
+                    data = pickle.dumps([x, y])
+                    s.sendall(data)
+                except:
+                    pass
+
                 filtered_angles.append([x, y])
                 # clamp angles
                 normalized_x = (x - zero_x) / limit_x
-                normalized_y = (y - zero_y) / limit_y
+                normalized_y = -(y - zero_y) / limit_y
                 if normalized_x > 1:
                     normalized_x = 1
                 elif normalized_x < -1:
@@ -154,7 +172,7 @@ if __name__ == "__main__":
                     )
 
                 p1 = (int(nose_2d[0]), int(nose_2d[1]))
-                p2 = (int(nose_2d[0] + y), int(nose_2d[1] - x))
+                p2 = (int(nose_2d[0] - y), int(nose_2d[1] - x))
 
                 cv2.line(image, p1, p2, (0, 255, 0), 3)
                 for idx, lm in enumerate(face_landmarks.landmark):

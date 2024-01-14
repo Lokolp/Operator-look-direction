@@ -2,11 +2,18 @@ import numpy as np
 import cv2 as cv
 import glob
 import pickle
-
+import sys
 ## Dane poczatkowe do ustawienia
-chessboardXsize=9
-chessboardYsize=6
-squares_mm_size=7
+# chessboardXsize=9
+# chessboardYsize=6
+# squares_mm_size=7
+chessboard = str(sys.argv[1])
+chessboard = chessboard.split(",")
+chessboardXsize = int(chessboard[0])
+chessboardYsize = int(chessboard[1])
+squares_mm_size = float(sys.argv[2])
+
+
 
 cap = cv.VideoCapture(0)
 cap.set(cv.CAP_PROP_FRAME_WIDTH, 1280)
@@ -93,37 +100,6 @@ print(cameraMatrix)
 
 print("\nDistortion Coefficients:")
 print(dist)
-# print("rvecs",rvecs)
-# print("tvecs",tvecs)
-############## UNDISTORTION #####################################################
-
-img = cv.imread('calibration_images/img23.png')
-h,  w = img.shape[:2]
-newCameraMatrix, roi = cv.getOptimalNewCameraMatrix(cameraMatrix, dist, (w,h), 1, (w,h))
-
-
-
-# Undistort
-dst = cv.undistort(img, cameraMatrix, dist, None, newCameraMatrix)
-
-# crop the image
-x, y, w, h = roi
-dst = dst[y:y+h, x:x+w]
-cv.imwrite('caliResult1.png', dst)
-
-
-
-# Undistort with Remapping
-mapx, mapy = cv.initUndistortRectifyMap(cameraMatrix, dist, None, newCameraMatrix, (w,h), 5)
-dst = cv.remap(img, mapx, mapy, cv.INTER_LINEAR)
-
-# crop the image
-x, y, w, h = roi
-dst = dst[y:y+h, x:x+w]
-cv.imwrite('caliResult2.png', dst)
-
-
-
 
 # Reprojection Error
 mean_error = 0

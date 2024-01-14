@@ -1,4 +1,5 @@
 import os
+import sys
 
 import cv2
 import numpy as np
@@ -13,6 +14,7 @@ from torch import nn
 import pickle
 from l2cs import vis
 import time
+import socket
 
 # Tested on Python 3.10, Pytorch 2.1, CUDA 11.8.89
 #
@@ -21,6 +23,18 @@ import time
 #
 # To install L2CS dependency run this command
 # `pip install git+https://github.com/edavalosanaya/L2CS-Net.git@main`
+
+# kalman filter for smoothing x and y angles
+kalman = cv2.KalmanFilter(4, 2)
+kalman.measurementMatrix = np.array([[1, 0, 0, 0], [0, 1, 0, 0]], np.float32)
+kalman.transitionMatrix = np.array(
+    [[1, 0, 0.9, 0], [0, 1, 0, 0.9], [0, 0, 1, 0], [0, 0, 0, 1]], np.float32
+)
+kalman.processNoiseCov = (
+    np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]], np.float32)
+    * 0.03
+)
+kalman.measurementNoiseCov = np.array([[1, 0], [0, 1]], np.float32) * 1
 
 
 class L2CS_Runner:
@@ -71,7 +85,11 @@ class L2CS_Runner:
 
     def run(self, emit_prediction=None):
         self._ensure_initialized()
-
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect((IP, PORT))
+        except:
+            print("Server not found")
         if self._capture is None:
             self._capture = cv2.VideoCapture(0)
             self._capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
@@ -108,6 +126,10 @@ class L2CS_Runner:
 
                 if face is not None:
                     pitch, yaw = self._predict_gaze(face)
+                    kalman.correct(np.array([[pitch], [yaw]], dtype=np.float32))
+                    predictions = kalman.predict()
+                    pitch = predictions[0][0]
+                    yaw = predictions[1][0]
                     x_min = int(box[0])
                     if x_min < 0:
                         x_min = 0
@@ -127,6 +149,11 @@ class L2CS_Runner:
                         (pitch * np.pi / 180, yaw * np.pi / 180),
                         color=(0, 0, 255),
                     )
+                    try:
+                        data = pickle.dumps([yaw, pitch])
+                        s.sendall(data)
+                    except:
+                        pass
                     # show the frame
                     cv2.putText(
                         frame,
@@ -214,21 +241,10 @@ class L2CS_Runner:
         if not self._initialized:
             raise Exception("Model is not initialized")
 
-    def _gaze_to_cartesian(self, pitch, yaw):
-        gaze_xyz = np.array(
-            [-np.cos(yaw) * np.sin(pitch), -np.sin(yaw), -np.cos(yaw) * np.cos(pitch)]
-        )
-        return gaze_xyz
-
-    # def _transform_gaze_coord_to_camera_coord(self, gaze_vect_l2cs):
-    #     return np.array([
-    #         gaze_vect_l2cs[1],
-    #         -gaze_vect_l2cs[0],
-    #         gaze_vect_l2cs[2],
-    #     ])
-
 
 if __name__ == "__main__":
+    IP = sys.argv[1]
+    PORT = int(sys.argv[2])
     runner = L2CS_Runner()
     runner.initialize()
     runner.run()
